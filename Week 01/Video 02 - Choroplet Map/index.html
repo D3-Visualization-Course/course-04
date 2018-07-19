@@ -1,0 +1,177 @@
+<html>
+
+<head>
+
+</head>
+
+<body>
+    <svg id="container" height="750" width="960" style="border: solid 1px black">
+        <g id="body" />
+        <g id="legend" transform="translate(200, 650)" />
+    </svg>
+</body>
+<script src="d3.js"></script>
+<script src="https://unpkg.com/topojson@3"></script>
+<script>
+    let body = d3.select("#body")
+    let legend = d3.select("#legend")
+    let ticks = 50
+
+    Promise.all([d3.tsv("unemployment.tsv"),
+    d3.json("counties.json")]).then(showData)
+
+
+    function getColorMap(data) {
+        var extent = d3.extent(data, d => +d.rate)
+
+
+        let colorScale = d3.scaleLinear()
+            .domain(extent)
+            .range(["white", "black"])
+
+        // let colorScale = d3.scaleLinear()
+        //     .domain(extent)
+        //     .range(["hsl(0,90%,50%)", "hsl(360,90%,50%)"])
+        //     .interpolate(d3.interpolateString);
+
+        // let colorScale = d3.scaleSequential(d3.interpolateSpectral)
+        //     .domain(extent)
+
+        colorScale.domain([0, ticks])
+
+        return d3.scaleQuantile()
+            .range(d3.range(ticks).map(i => colorScale(i)))
+            .domain(data.map(d => +d.rate))
+
+        return colorScale
+
+    }
+
+    function indexData(data) {
+        return data.reduce((prev, curr) => {
+            prev[curr.id] = +curr.rate;
+            return prev
+        }, {})
+    }
+
+    function drawLegend(scale, data) {
+        let height = 30;
+        let width = 400;
+
+
+
+        let rateExtent = d3.extent(data, d => +d.rate)
+
+        let histogram = d3.histogram()
+            .thresholds(ticks)
+            .value(d => d.rate)
+            .domain([0, rateExtent[1]])
+
+        let bins = histogram(data);
+        let count = 0
+        //stack
+        bins = bins.map(d => {
+            d.xStart = count + 1
+            count = count + d.length;
+            d.xEnd = count
+            return d;
+        })
+
+        let x = d3.scaleLinear()
+            .range([0, width])
+            .domain([1, count])
+
+        let xRate = d3.scaleLinear()
+            .range([0, width])
+            .domain([1, rateExtent[1]])
+
+
+
+
+        legend.selectAll(".bar")
+            .data(bins)
+            .enter().append("rect")
+            .attr("class", "bar")
+            .attr("x", d => x(d.xStart))
+            .attr("width", d => x(d.xEnd) - x(d.xStart))
+            .attr("height", height)
+            .attr("fill", d => scale(d.x0))
+
+
+        legend.selectAll(".bar")
+            .data(bins)
+            .enter().append("rect")
+            .attr("class", "bar")
+            .attr("x", d => x(d.xStart))
+            .attr("width", d => x(d.xEnd) - x(d.xStart))
+            .attr("height", height)
+            .attr("fill", d => scale(d.x0))
+
+
+        legend.append("rect")
+            .attr("width", width)
+            .attr("height", height)
+            .attr("stroke", "black")
+            .attr("fill", "none")
+
+        let midpoint = rateExtent[1] / 2
+        console.log(midpoint)
+        midpoint = bins.find(d => midpoint <= d.x0);
+        console.log(midpoint)
+
+        legend.append("line")
+            .attr("x1", d => x(midpoint.xStart))
+            .attr("y1", 32)
+            .attr("x2", d => x(midpoint.xStart))
+            .attr("y2", 50)
+            .attr("stroke", "black")
+            .attr("stroke-width", "5")
+
+
+        // legend.append("text")
+        //     .text(0)
+        //     .attr("dx", -40)
+        //     .attr("dy", 100)
+
+        // legend.append("text")
+        //     .text(rateExtent[1])
+        //     .attr("dx", 420)
+        //     .attr("dy", 100)
+
+        console.log(bins)
+
+    }
+
+    function showData([data, mapInfo]) {
+        let bodyHeight = 300
+        let bodyWidth = 500
+
+        index = indexData(data)
+
+
+        var path = d3.geoPath()
+
+        var colorMap = getColorMap(data)
+
+        body.selectAll("path").data(topojson.feature(mapInfo, mapInfo.objects.counties).features)
+            .enter().append("path")
+            .attr("d", path)
+            .attr("stroke", "#ddd")
+            .attr("fill", d => colorMap(index[d.id]))
+
+        body.append("path")
+            .datum(topojson.mesh(mapInfo, mapInfo.objects.states, (a, b) => a !== b))
+            .attr("fill", "none")
+            .attr("stroke", "white")
+            .attr("d", path);
+
+        drawLegend(colorMap, data)
+
+
+
+    }
+
+
+</script>
+
+</html>

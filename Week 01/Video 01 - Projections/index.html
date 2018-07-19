@@ -1,0 +1,78 @@
+<html>
+
+<head>
+    <style>
+        .line {
+            fill: none;
+            stroke: blue
+        }
+
+        .graticule {
+            stroke: #ccc;
+            fill: none;
+        }
+
+        .sphere {
+            fill: none;
+            stroke: black;
+        }
+    </style>
+</head>
+
+<body>
+    <svg id="container" height="300" width="500" style="border: solid 1px black">
+        <g id="graticule" />
+        <g id="body" />
+    </svg>
+</body>
+<script src="d3.js"></script>
+
+<script>
+    let body = d3.select("#body")
+
+    d3.json("countries.geo.json").then(showData)
+
+    function drawGraticule(path) {
+        let graticuleBase = d3.select("#graticule")
+        var graticule = d3.geoGraticule()
+
+        var sphere = graticuleBase.selectAll('path.sphere').data([{ type: 'Sphere' }]);
+
+        var lines = graticuleBase.selectAll('path.graticule').data([graticule()]);
+        lines.enter().append('path').attr("class", 'graticule').attr('d', path);
+
+        sphere.enter().append('path').attr("class", 'sphere').attr('d', path);
+
+    }
+
+    function showData(mapInfo) {
+        let bodyHeight = 300
+        let bodyWidth = 500
+
+        var projection =
+            //d3.geoEquirectangular()
+            //d3.geoOrthographic()
+            //d3.geoConicEqualArea()
+            //d3.geoNaturalEarth1()
+            d3.geoMercator()
+
+                .fitSize([bodyWidth, bodyHeight], mapInfo);
+
+        var path = d3.geoPath()
+            .projection(projection);
+
+        drawGraticule(path)
+
+        body.selectAll("path").data(mapInfo.features)
+            .enter().append("path")
+            .attr("d", d => path(d))
+            .attr("stroke", "black")
+            .attr("fill", "black")
+
+
+    }
+
+
+</script>
+
+</html>

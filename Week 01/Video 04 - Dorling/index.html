@@ -1,0 +1,142 @@
+<html>
+
+<head>
+
+</head>
+
+<body>
+    <svg id="container" height="750" width="960" style="border: solid 1px black">
+        <g id="body" />
+    </svg>
+</body>
+<script src="d3.js"></script>
+<script src="https://d3js.org/topojson.v2.min.js"></script>
+
+<script>
+    let body = d3.select("#body")
+    let bodyHeight = 750
+    let bodyWidth = 960
+
+    function simulate() {
+
+    }
+
+    function drawMapOriginal(state, population, indexData) {
+        let projection =
+            d3.geoAlbersUsa()
+                .fitSize([bodyWidth, bodyHeight], state);
+
+        let path = d3.geoPath()
+            .projection(projection);
+
+
+        var maxPopulation = d3.max(population, d => +d.Population)
+        let colorScale = d3.scaleLinear()
+            .domain([0, maxPopulation])
+            .range(["white", "black"])
+
+
+        body.selectAll("path").data(state.features)
+            .enter().append("path")
+            .attr("d", d => path(d))
+            .attr("stroke", "black")
+            .attr("fill", d => colorScale(indexData[d.properties.name]))
+    }
+
+
+    function drawMap(us, population, indexData) {
+        let path = d3.geoPath()
+
+
+        var maxPopulation = d3.max(population, d => +d.Population)
+        let colorScale = d3.scaleLinear()
+            .domain([0, maxPopulation])
+            .range(["white", "#555"])
+
+        let sizeScale = d3.scaleSqrt()
+            .domain([0, maxPopulation])
+            .range([0, 70])
+
+
+        body.selectAll("path").data(topojson.feature(us, us.objects.states).features)
+            .enter().append("path")
+            .attr("d", d => path(d))
+            .attr("stroke", "black")
+            .attr("fill", d => colorScale(indexData[d.id]))
+
+        let nodes = topojson.feature(us, us.objects.states).features
+        let neighbors = topojson.neighbors(us.objects.states.geometries)
+        nodes = nodes.map(node => {
+            let centroid = path.centroid(node);
+            node.x = centroid[0];
+            node.y = centroid[1];
+            node.r = sizeScale(indexData[node.id])
+            return node;
+        });
+
+        let links = d3.merge(neighbors.map((neighborSet, i) => {
+            return neighborSet.map(j => ({
+                source: i,
+                target: j,
+                distance: nodes[i].r + nodes[j].r
+            }))
+        }))
+
+
+        console.log(links)
+
+        body.selectAll("circle").data(nodes)
+            .enter().append("circle")
+            .attr("class", "node")
+            .attr("r", d => sizeScale(indexData[d.id]))
+            .attr("cx", d => path.centroid(d)[0])
+            .attr("cy", d => path.centroid(d)[1])
+            .attr("stroke", "black")
+            .attr("stroke-width", "2px")
+            .attr("fill", "black")
+            .attr("fill", d => colorScale(indexData[d.id]))
+            .append("title").text(d => d.id)
+
+
+
+        var simulation = d3.forceSimulation(nodes)
+
+            .force("collide", d3.forceCollide().strength(0.8).radius(d => d.r))
+            .force("link", d3.forceLink(links).distance(d => d.distance))
+
+            .force("x", d3.forceX().x(d => d.x).strength(0.1))
+            .force("y", d3.forceY().y(d => d.y).strength(0.1))
+            .on("tick", function () {
+                d3.selectAll(".node")
+                    .attr("cx", function (d) { return d.x; })
+                    .attr("cy", function (d) { return d.y; })
+            })
+
+
+    }
+
+
+    function showData([states, population]) {
+
+        let indexData = population.reduce((prev, next) => {
+            prev[next.ID] = +next.Population
+            return prev
+        }, {})
+
+        drawMap(states, population, indexData)
+    }
+
+    function loadData() {
+        Promise.all([
+            d3.json("https://unpkg.com/us-atlas@1/us/10m.json"),
+            d3.csv("population.csv"),
+        ]).then(showData)
+
+
+    }
+
+    loadData()
+
+</script>
+
+</html>
