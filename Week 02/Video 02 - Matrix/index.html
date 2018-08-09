@@ -1,0 +1,146 @@
+<html>
+
+<head>
+    <style>
+        text {
+            font-family: Arial, Helvetica, sans-serif;
+
+        }
+    </style>
+</head>
+
+<body>
+    <svg id="matrix">
+        <g id="matrix-body"></g>
+        <g id="xnames"></g>
+        <g id="ynames"></g>
+    </svg>
+</body>
+<script src="d3.js"></script>
+<script>
+    //Setup
+    let margin = { top: 80, right: 0, bottom: 0, left: 80 },
+        width = 720,
+        height = 720,
+        bodyWidth = width - margin.left - margin.right,
+        bodyHeight = height - margin.top - margin.bottom
+
+    let store = {}
+
+    function init() {
+        d3.select("#matrix")
+            .attr("width", width)
+            .attr("height", height)
+
+        d3.select("#matrix-body")
+            .attr("transform", `translate(${margin.left},${margin.top})`)
+
+        d3.select("#ynames")
+            .attr("transform", `translate(${margin.left},${margin.top})`)
+
+        d3.select("#xnames")
+            .attr("transform", `translate(${margin.left},${margin.top})`)
+
+        loadData().then(showData)
+    }
+
+
+    function loadData() {
+        return d3.json("data.json").then(data => {
+            store.data = data
+            store.nodeIndex = [...data.nodes]
+            let reversedLinks = data.links.map(l => ({
+                source: l.target,
+                target: l.source,
+                value: l.value
+            }))
+            store.links = [...data.links, ...reversedLinks]
+            return data
+        })
+    }
+
+    function showData(data) {
+        let nodes = data.nodes
+
+        let positionScale = d3.scaleBand()
+            .domain(nodes.map(d => d.name))
+            .range([0, bodyWidth])
+
+        let valueScale = d3.scaleLog()
+            .range([0.2, 1])
+            .domain([1, d3.max(data.links, d => d.value)])
+
+
+        let matrixBody = d3.select("#matrix-body")
+        const xSource = d => positionScale(store.nodeIndex[d.source].name)
+        const xTarget = d => positionScale(store.nodeIndex[d.target].name)
+
+        let links = matrixBody.selectAll(".cell").data(store.links)
+        links.enter()
+            .append("rect")
+            .attr("class", "cell")
+            .attr("width", positionScale.bandwidth())
+            .attr("height", positionScale.bandwidth())
+            .attr("x", xSource)
+            .attr("y", xTarget)
+            .attr("opacity", d => valueScale(d.value))
+
+        let yNames = d3.select("#ynames")
+            .selectAll("g")
+            .data(nodes)
+            .enter()
+            .append("g")
+            .attr("transform", d => `translate(0,${positionScale(d.name)})`)
+
+        yNames.append("text")
+            .text(d => d.name)
+            .attr("text-anchor", "end")
+            .attr("dx", -5)
+            .attr("alignment-baseline", "hanging")
+            .style("font-size", `${positionScale.bandwidth()}px`)
+
+        yNames.append("line")
+            .attr("x1", 0)
+            .attr("x2", bodyWidth)
+            .attr("y1", 0)
+            .attr("y2", 0)
+            .attr("stroke", "#eee")
+
+        let xNames = d3.select("#xnames")
+            .selectAll("g")
+            .data(nodes)
+            .enter()
+            .append("g")
+            .attr("transform", d => `translate(${positionScale(d.name)},0)`)
+
+        xNames.append("text")
+            .text(d => d.name)
+            .attr("dx", 5)
+            .attr("text-anchor", "start")
+            .attr("alignment-baseline", "hanging")
+            .attr("transform", d => `rotate(-90)`)
+            .style("font-size", `${positionScale.bandwidth()}px`)
+
+        xNames.append("line")
+            .attr("x1", 0)
+            .attr("x2", 0)
+            .attr("y1", 0)
+            .attr("y2", bodyHeight)
+            .attr("stroke", "#eee")
+
+        d3.select("#matrix")
+            .append("rect")
+            .attr("x", margin.left)
+            .attr("y", margin.top)
+            .attr("width", bodyWidth)
+            .attr("height", bodyHeight)
+            .attr("fill", "none")
+            .attr("stroke", "black")
+    }
+
+    init()
+
+
+</script>
+
+</html>

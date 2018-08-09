@@ -1,0 +1,89 @@
+<html>
+
+<head>
+    <style>
+        .links line {
+            stroke: black
+        }
+    </style>
+</head>
+
+<body>
+    <svg id="diagram"></svg>
+</body>
+<script src="d3.js"></script>
+<script>    
+    let width = 720,
+        height = 720;
+
+
+    let store = {}
+    let diagram = d3.select("#diagram")
+
+    function init() {
+        diagram.attr("width", width).attr("height", height)
+        loadData().then(showData)
+    }
+
+
+    function loadData() {
+        return d3.json("data.json").then(data => {
+            store.data = data
+            data.nodes = data.nodes.map((d, idx) => { d.id = idx; return d; })
+            return data
+        })
+    }
+
+    function createElements(data) {
+        let links = diagram.append("g")
+            .attr("class", "links")
+            .selectAll("line")
+            .data(data.links)
+            .enter()
+            .append("line")
+
+        let nodes = diagram.append("g")
+            .attr("class", "nodes")
+            .selectAll("circle")
+            .data(data.nodes)
+            .enter()
+            .append("circle")
+            .attr("r", 5)
+            .attr("fill", "black")
+
+    }
+
+    function updateElements() {
+        d3.select(".links")
+            .selectAll("line")
+            .attr("x1", function (d) { return d.source.x; })
+            .attr("y1", function (d) { return d.source.y; })
+            .attr("x2", function (d) { return d.target.x; })
+            .attr("y2", function (d) { return d.target.y; });
+
+        d3.select(".nodes")
+            .selectAll("circle")
+            .attr("cx", function (d) { return d.x; })
+            .attr("cy", function (d) { return d.y; })
+    }
+
+    function showData(data) {
+        console.log(data)
+        createElements(data)
+        let simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id((d) => d.id))
+            .force("charge", d3.forceManyBody())
+            .force("center", d3.forceCenter(width / 2, height / 2));
+
+        simulation
+            .nodes(data.nodes)
+            .on("tick", updateElements);
+
+        simulation.force("link")
+            .links(data.links);
+
+    }
+    init()
+</script>
+
+</html>

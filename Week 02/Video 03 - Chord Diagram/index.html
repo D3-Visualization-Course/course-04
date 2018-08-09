@@ -1,0 +1,81 @@
+<html>
+
+<head>
+    <style>
+        text {
+            font-family: Arial, Helvetica, sans-serif;
+
+        }
+    </style>
+</head>
+
+<body>
+    <svg id="matrix">
+        <g id="body"></g>
+        <g id="names"></g>
+    </svg>
+</body>
+<script src="d3.js"></script>
+<script>
+    //Setup
+    let margin = { top: 100, right: 100, bottom: 100, left: 100 },
+        width = 800,
+        height = 800,
+        bodyWidth = width - margin.left - margin.right,
+        bodyHeight = height - margin.top - margin.bottom
+
+    let store = {}
+
+    function init() {
+        d3.select("#matrix")
+            .attr("width", width)
+            .attr("height", height)
+
+        d3.select("#names")
+            .attr("transform", `translate(${margin.left},${margin.top})`)
+
+        loadData().then(showData)
+    }
+
+
+    function loadData() {
+        return d3.json("data.json").then(data => {
+            store.data = data
+            store.nodeIndex = [...data.nodes]
+            let reversedLinks = data.links.map(l => ({
+                source: l.target,
+                target: l.source,
+                value: l.value
+            }))
+            store.links = [...data.links, ...reversedLinks]
+            return data
+        })
+    }
+
+    function showData(data) {
+        nodes = data.nodes
+        let positionScale = d3.scaleBand()
+            .domain(nodes.map(d => d.name))
+            .range([0, 360])
+
+        d3.select("#names").append("circle").attr("r", 4).attr("fill", "black").attr("cy", bodyHeight / 2).attr("cx", bodyWidth / 2)
+
+        let names = d3.select("#names").selectAll("g")
+            .data(nodes)
+            .enter().append("g")
+            .attr("transform", d => `translate(${bodyHeight / 2},${bodyWidth / 2}) rotate(${positionScale(d.name)})`)
+
+        names.append("text")
+            .text(d => d.name)
+            .attr("dx", bodyWidth / 2)
+            .attr("alignment-baseline", "middle")
+            .attr("text-anchor", (d) => positionScale(d.name) < 90 || positionScale(d.name) > 270 ? "start" : "end")
+            .attr("transform", (d) => positionScale(d.name) < 90 || positionScale(d.name) > 270 ? null : `rotate(180, ${bodyWidth / 2}, ${0})`)
+    }
+
+    init()
+
+
+</script>
+
+</html>
